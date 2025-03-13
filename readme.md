@@ -60,7 +60,7 @@ qbot.exe filebot [flags]
 ### Use with qbittorrent
 For integration with qbittorrent as a post-processing script, you can use the following example command:
 ```bash
-./qbot.exe filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras"
+./qbot.exe filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t /path/to/temp_root
 ```
 In this command:
 - `%F` is the downloaded file/folder path.
