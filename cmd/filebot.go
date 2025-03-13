@@ -64,6 +64,11 @@ var filebotCmd = &cobra.Command{
 		// Avoids issues with folder names (like spaces) when using filebot.
 		// ==========================================================================
 		cleanTempDir := filepath.Join(tempRoot, "temp")
+		if err := ValidateInputPath(cleanTempDir); err != nil {
+			log.Println("Error validating temporary directory:", err)
+			return
+		}
+
 		if err := os.MkdirAll(cleanTempDir, os.ModePerm); err != nil {
 			log.Println("Error creating temporary directory:", err)
 			return
@@ -78,6 +83,8 @@ var filebotCmd = &cobra.Command{
 			log.Println("Error moving files to temporary directory:", err)
 			return
 		}
+		logging.LogErrorf("Moved files to temporary directory: %s", cleanTempDir)
+
 		// Update the input directory to point to the temporary folder.
 		inputDir = cleanTempDir
 
@@ -110,6 +117,15 @@ var filebotCmd = &cobra.Command{
 		}
 		log.Println("Cleaned up temporary directory.")
 	},
+}
+
+// filebot does not accept input paths with spaces.
+// This function validates the input path to ensure it does not contain spaces.
+func ValidateInputPath(inputPath string) error {
+	if strings.Contains(inputPath, " ") {
+		return logging.LogErrorf("input path contains spaces: %s", inputPath)
+	}
+	return nil
 }
 
 func ProcessEnums(tag string, actionStr string, conflictStr string) (filebot.DB, filebot.Action, filebot.Conflict, error) {
