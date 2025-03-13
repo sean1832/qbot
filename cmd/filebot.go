@@ -4,7 +4,6 @@ Copyright © 2025 qbot <dev@zekezhang.com>
 package cmd
 
 import (
-	"errors"
 	"io"
 	"io/fs"
 	"log"
@@ -25,6 +24,7 @@ var conflictStr string
 var language string
 var extensionsStr string
 var excludedDirsStr string
+var tempRoot string
 
 // filebotCmd represents the filebot command
 var filebotCmd = &cobra.Command{
@@ -32,7 +32,7 @@ var filebotCmd = &cobra.Command{
 	Short: "Activate filebot automation",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Initial processing of arguments and enums
+		// Initial processing of arguments and enums.
 		inputDir := filepath.Clean(args[0])
 		mediaCategory := args[1]
 
@@ -59,35 +59,34 @@ var filebotCmd = &cobra.Command{
 		inputDir = filepath.ToSlash(inputDir)
 		outputDir = filepath.ToSlash(outputDir)
 
-		// If excludedDirsStr is provided, first scan the inputDir to see if any excluded directories exist.
-		// Only if they exist, move files (excluding specified directories) to a temporary folder.
-		if excludedDirsStr != "" {
-			excludedDirs := strings.Split(excludedDirsStr, ",")
-			exists, err := hasExcludedDirs(inputDir, excludedDirs)
-			if err != nil {
-				log.Println("Error scanning input directory for excluded directories:", err)
-				return
-			}
-			if exists {
-				tempDir, err := os.MkdirTemp(inputDir, ".temp_qbot_")
-				if err != nil {
-					log.Println("Error creating temporary directory:", err)
-					return
-				}
-				if err := MoveFilesWithExclusion(inputDir, tempDir, excludedDirs); err != nil {
-					log.Println("Error moving files with exclusion:", err)
-					return
-				}
-				inputDir = tempDir
-			}
+		// ==========================================================================
+		// Always move all files to a temporary directory with a clean folder name.
+		// Avoids issues with folder names (like spaces) when using filebot.
+		// ==========================================================================
+		cleanTempDir := filepath.Join(tempRoot, "temp")
+		if err := os.MkdirAll(cleanTempDir, os.ModePerm); err != nil {
+			log.Println("Error creating temporary directory:", err)
+			return
 		}
 
-		// Now, scan the (possibly updated) inputDir for existing extensions.
+		// Move files to the temporary directory, excluding certain paths.
+		var excludedDirs []string
+		if excludedDirsStr != "" {
+			excludedDirs = strings.Split(excludedDirsStr, ",")
+		}
+		if err := MoveFilesWithExclusion(inputDir, cleanTempDir, excludedDirs, false); err != nil {
+			log.Println("Error moving files to temporary directory:", err)
+			return
+		}
+		// Update the input directory to point to the temporary folder.
+		inputDir = cleanTempDir
+
+		// Scan the updated inputDir for existing extensions.
 		userExtensions := strings.Split(extensionsStr, ",")
 		extensions := TryUseExtensions(userExtensions, GetExistingExtensions(inputDir))
 		if len(extensions) == 0 {
 			log.Println("No valid extensions found in the input path")
-			// continue
+			// Continue
 		}
 
 		// Process files for each valid extension.
@@ -102,15 +101,14 @@ var filebotCmd = &cobra.Command{
 			}
 		}
 
-		// Cleanup the temporary directory if it was used.
-		if excludedDirsStr != "" {
-			// Only remove if temp folder was actually created.
-			if err := os.RemoveAll(inputDir); err != nil {
-				log.Println("Error cleaning up temporary directory:", err)
-				return
-			}
-			log.Println("Cleaned up temp directory.")
+		// ==========================================================================
+		// Cleanup: remove the temporary directory after processing.
+		// ==========================================================================
+		if err := os.RemoveAll(inputDir); err != nil {
+			log.Println("Error cleaning up temporary directory:", err)
+			return
 		}
+		log.Println("Cleaned up temporary directory.")
 	},
 }
 
@@ -169,7 +167,7 @@ func GetMediaCategoryRoot(category string) (string, error) {
 }
 
 func TryUseExtensions(extensionsInputs []string, existingExtensions []string) []string {
-	// Build a set for existing extensions (normalized to lower-case)
+	// Build a set for existing extensions (normalized to lower-case).
 	existingSet := make(map[string]struct{})
 	for _, ext := range existingExtensions {
 		normalized := strings.ToLower(strings.TrimPrefix(ext, "."))
@@ -283,7 +281,8 @@ func isCrossDeviceError(err error) bool {
 
 // MoveFilesWithExclusion walks the source directory and moves files that do not belong
 // to the excluded paths to the destination directory while preserving the directory structure.
-func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []string) error {
+// In our updated implementation, passing an empty slice ensures that all files are moved.
+func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []string, preserveStruct bool) error {
 	return filepath.Walk(sourceDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return logging.LogErrorf("error walking path %s: %w", path, err)
@@ -298,12 +297,18 @@ func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []st
 				}
 			}
 			if !exclude {
-				// Preserve directory structure by computing relative path.
-				relPath, err := filepath.Rel(sourceDir, path)
-				if err != nil {
-					return err
+				var destPath string
+				if preserveStruct {
+					// Preserve directory structure by computing the relative path.
+					relPath, err := filepath.Rel(sourceDir, path)
+					if err != nil {
+						return err
+					}
+					destPath = filepath.Join(destinationDir, relPath)
+				} else {
+					// Move the file directly to the destination directory.
+					destPath = filepath.Join(destinationDir, filepath.Base(path))
 				}
-				destPath := filepath.Join(destinationDir, relPath)
 				if err := MoveFile(path, destPath); err != nil {
 					return err
 				}
@@ -311,33 +316,6 @@ func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []st
 		}
 		return nil
 	})
-}
-
-// hasExcludedDirs scans the given root directory to see if any directories
-// match (contain) any of the excluded names. It returns true if at least one is found.
-func hasExcludedDirs(root string, excluded []string) (bool, error) {
-	var errExcludedFound = errors.New("excluded directory found")
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			for _, ex := range excluded {
-				ex = strings.TrimSpace(ex)
-				if ex != "" && strings.Contains(path, ex) {
-					return errExcludedFound
-				}
-			}
-		}
-		return nil
-	})
-	if err == errExcludedFound {
-		return true, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return false, nil
 }
 
 func init() {
@@ -349,7 +327,8 @@ func init() {
 	filebotCmd.Flags().StringVarP(&conflictStr, "conflict", "c", "skip", "conflict resolution")
 	filebotCmd.Flags().StringVarP(&extensionsStr, "ext", "e", "mkv,mp4,avi,mov,rmvb", "file extensions to process (comma separated)")
 	filebotCmd.Flags().StringVarP(&excludedDirsStr, "exclude", "x", "", "directories to exclude (comma separated)")
+	filebotCmd.Flags().StringVarP(&tempRoot, "temp", "t", ".temp", "temporary root directory for moving files with exclusion")
 
 	// Example usage for qbittorrent post-process script:
-	// ./qbot.exe filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras"
+	// ./qbot.exe filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t /path/to/temp_root
 }
