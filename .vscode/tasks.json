@@ -1,0 +1,22 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "go",
+			"label": "go: build package",
+			"command": "build",
+			"args": [
+				"-o",
+				"bin/qbot.exe"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}" // Set the working directory to where your Go files reside
+			},
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build",
+			"detail": "go build in ${workspaceFolder}/cmd"
+		}
+	]
+}
