@@ -3,20 +3,45 @@
 	"tasks": [
 		{
 			"type": "go",
-			"label": "go: build package",
+			"label": "go: build Windows binary",
 			"command": "build",
 			"args": [
 				"-o",
-				"bin/qbot.exe"
+				"bin/qbot-win-amd64.exe"
 			],
 			"options": {
-				"cwd": "${workspaceFolder}" // Set the working directory to where your Go files reside
+				"cwd": "${workspaceFolder}",
+				"env": {
+					"GOOS": "windows",
+					"GOARCH": "amd64"
+				}
 			},
 			"problemMatcher": [
 				"$go"
 			],
 			"group": "build",
-			"detail": "go build in ${workspaceFolder}/cmd"
+			"detail": "Build Windows executable"
+		},
+		{
+			"type": "go",
+			"label": "go: build Linux binary",
+			"command": "build",
+			"args": [
+				"-o",
+				"bin/qbot-linux-amd64"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}",
+				"env": {
+					"GOOS": "linux",
+					"GOARCH": "amd64"
+				}
+			},
+			"problemMatcher": [
+				"$go"
+			],
+			"group": "build",
+			"detail": "Build Linux executable"
 		}
 	]
 }
