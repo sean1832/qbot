@@ -10,7 +10,16 @@ qbot is designed to be used as a post-processing script for qbittorrent. It auto
 - [filebot](https://www.filebot.net/) with a valid license
 
 ## Installation
-1. Download the latest release from the [releases page](https://github.com/sean1832/qbot/releases/latest)
+1. Download the latest release from the [releases page](https://github.com/sean1832/qbot/releases/latest) or with `curl`:
+### Windows
+```bash
+curl -L https://github.com/sean1832/qbot/releases/latest/download/qbot-win-amd64.exe -o qbot.exe
+```
+### Linux
+```bash
+curl -L https://github.com/sean1832/qbot/releases/latest/download/qbot-linux-amd64 -o qbot
+```
+
 2. Add the binary to your PATH
 
 ### Compile from source
