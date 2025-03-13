@@ -78,15 +78,17 @@ var filebotCmd = &cobra.Command{
 		extensions := TryUseExtensions(userExtensions, GetExistingExtensions(inputDir))
 		if len(extensions) == 0 {
 			log.Println("No valid extensions found in the input path")
-			return
+			// continue
 		}
 
 		// Process files for each valid extension.
 		for _, ext := range extensions {
 			tempInputPath := filepath.Join(inputDir, "*."+ext)
 			log.Println("Processing:", tempInputPath)
-			if _, err = filebot.Rename(tempInputPath, outputDir, query, format, db, action, conflict, language); err != nil {
+			var msg string
+			if msg, err = filebot.Rename(tempInputPath, outputDir, query, format, db, action, conflict, language); err != nil {
 				log.Println("Error renaming files:", err)
+				log.Println("Error message:", msg)
 				return
 			}
 		}
@@ -203,7 +205,7 @@ func GetExistingExtensions(filePath string) []string {
 	return uniqueExts
 }
 
-func MoveFile(source, dest string) error {
+func MoveFile(source string, dest string) error {
 	// Open the source file.
 	inputFile, err := os.Open(source)
 	if err != nil {
