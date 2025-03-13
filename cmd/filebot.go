@@ -4,6 +4,7 @@ Copyright © 2025 qbot <dev@zekezhang.com>
 package cmd
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"log"
@@ -58,19 +59,27 @@ var filebotCmd = &cobra.Command{
 		inputDir = filepath.ToSlash(inputDir)
 		outputDir = filepath.ToSlash(outputDir)
 
-		// If excludedDirsStr is provided, move files (excluding specified directories) to a temporary folder.
+		// If excludedDirsStr is provided, first scan the inputDir to see if any excluded directories exist.
+		// Only if they exist, move files (excluding specified directories) to a temporary folder.
 		if excludedDirsStr != "" {
 			excludedDirs := strings.Split(excludedDirsStr, ",")
-			tempDir, err := os.MkdirTemp(inputDir, ".temp_qbot_")
+			exists, err := hasExcludedDirs(inputDir, excludedDirs)
 			if err != nil {
-				log.Println("Error creating temporary directory:", err)
+				log.Println("Error scanning input directory for excluded directories:", err)
 				return
 			}
-			if err := MoveFilesWithExclusion(inputDir, tempDir, excludedDirs); err != nil {
-				log.Println("Error moving files with exclusion:", err)
-				return
+			if exists {
+				tempDir, err := os.MkdirTemp(inputDir, ".temp_qbot_")
+				if err != nil {
+					log.Println("Error creating temporary directory:", err)
+					return
+				}
+				if err := MoveFilesWithExclusion(inputDir, tempDir, excludedDirs); err != nil {
+					log.Println("Error moving files with exclusion:", err)
+					return
+				}
+				inputDir = tempDir
 			}
-			inputDir = tempDir
 		}
 
 		// Now, scan the (possibly updated) inputDir for existing extensions.
@@ -95,6 +104,7 @@ var filebotCmd = &cobra.Command{
 
 		// Cleanup the temporary directory if it was used.
 		if excludedDirsStr != "" {
+			// Only remove if temp folder was actually created.
 			if err := os.RemoveAll(inputDir); err != nil {
 				log.Println("Error cleaning up temporary directory:", err)
 				return
@@ -205,7 +215,7 @@ func GetExistingExtensions(filePath string) []string {
 	return uniqueExts
 }
 
-// Moves a file from source to dest.
+// MoveFile moves a file from source to dest.
 // It first tries os.Rename which is fast and atomic if source and dest are on the same filesystem.
 // If os.Rename fails due to a cross-device error, it falls back to copying the file and then removing the source.
 func MoveFile(source, dest string) error {
@@ -271,6 +281,8 @@ func isCrossDeviceError(err error) bool {
 	return false
 }
 
+// MoveFilesWithExclusion walks the source directory and moves files that do not belong
+// to the excluded paths to the destination directory while preserving the directory structure.
 func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []string) error {
 	return filepath.Walk(sourceDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -299,6 +311,33 @@ func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []st
 		}
 		return nil
 	})
+}
+
+// hasExcludedDirs scans the given root directory to see if any directories
+// match (contain) any of the excluded names. It returns true if at least one is found.
+func hasExcludedDirs(root string, excluded []string) (bool, error) {
+	var errExcludedFound = errors.New("excluded directory found")
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			for _, ex := range excluded {
+				ex = strings.TrimSpace(ex)
+				if ex != "" && strings.Contains(path, ex) {
+					return errExcludedFound
+				}
+			}
+		}
+		return nil
+	})
+	if err == errExcludedFound {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func init() {
