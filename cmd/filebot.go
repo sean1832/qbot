@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	logging "github.com/sean1832/qbot/internal"
 	filebot "github.com/sean1832/qbot/pkg"
@@ -24,7 +25,6 @@ var language string
 var extensionsStr string
 var excludedDirsStr string
 
-// filebotCmd represents the filebot command
 // filebotCmd represents the filebot command
 var filebotCmd = &cobra.Command{
 	Use:   "filebot",
@@ -205,40 +205,70 @@ func GetExistingExtensions(filePath string) []string {
 	return uniqueExts
 }
 
-func MoveFile(source string, dest string) error {
-	// Open the source file.
+// Moves a file from source to dest.
+// It first tries os.Rename which is fast and atomic if source and dest are on the same filesystem.
+// If os.Rename fails due to a cross-device error, it falls back to copying the file and then removing the source.
+func MoveFile(source, dest string) error {
+	// Ensure the destination directory exists.
+	destDir := filepath.Dir(dest)
+	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
+		return logging.LogErrorf("failed to create destination directory %s: %w", destDir, err)
+	}
+
+	// Try to move the file via os.Rename.
+	if err := os.Rename(source, dest); err == nil {
+		return nil
+	} else if !isCrossDeviceError(err) {
+		// If the error is not because of a cross-device link, return it.
+		return logging.LogErrorf("failed to rename file from %s to %s: %w", source, dest, err)
+	}
+
+	// Fallback: source and dest are on different filesystems.
 	inputFile, err := os.Open(source)
 	if err != nil {
 		return logging.LogErrorf("couldn't open source file %s: %w", source, err)
 	}
-	// Ensure file is closed on function exit.
 	defer inputFile.Close()
 
-	// Ensure the destination directory exists.
-	if err := os.MkdirAll(filepath.Dir(dest), os.ModePerm); err != nil {
-		return logging.LogErrorf("failed to create destination directory %s: %w", filepath.Dir(dest), err)
-	}
-
-	// Create the destination file.
 	outputFile, err := os.Create(dest)
 	if err != nil {
-		return logging.LogErrorf("couldn't open destination file %s: %w", dest, err)
+		return logging.LogErrorf("couldn't create destination file %s: %w", dest, err)
 	}
 	defer outputFile.Close()
 
-	// Copy the file content.
+	// Copy file content.
 	if _, err := io.Copy(outputFile, inputFile); err != nil {
 		return logging.LogErrorf("couldn't copy file from %s to %s: %w", source, dest, err)
 	}
 
-	// Close inputFile early on Windows before deletion.
-	inputFile.Close()
+	// Ensure the data is flushed to disk.
+	if err := outputFile.Sync(); err != nil {
+		return logging.LogErrorf("couldn't sync destination file %s: %w", dest, err)
+	}
+
+	// Optionally, preserve the file mode.
+	if fi, err := os.Stat(source); err == nil {
+		if err = os.Chmod(dest, fi.Mode()); err != nil {
+			return logging.LogErrorf("couldn't set permissions on %s: %w", dest, err)
+		}
+	}
 
 	// Remove the source file.
 	if err := os.Remove(source); err != nil {
 		return logging.LogErrorf("couldn't remove source file %s: %w", source, err)
 	}
+
 	return nil
+}
+
+// isCrossDeviceError checks if the error is due to a cross-device link.
+func isCrossDeviceError(err error) bool {
+	if linkErr, ok := err.(*os.LinkError); ok {
+		if errno, ok := linkErr.Err.(syscall.Errno); ok {
+			return errno == syscall.EXDEV
+		}
+	}
+	return false
 }
 
 func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []string) error {
