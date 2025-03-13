@@ -12,7 +12,7 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "qbot",
-	Short: "qbot v0.0.1",
+	Short: "qbot v0.1.0",
 	Long:  `qbittorrent post-processing CLI`,
 }
 
