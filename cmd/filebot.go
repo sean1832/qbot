@@ -83,7 +83,7 @@ var filebotCmd = &cobra.Command{
 			log.Println("Error moving files to temporary directory:", err)
 			return
 		}
-		logging.LogErrorf("Moved files to temporary directory: %s", cleanTempDir)
+		log.Printf("Moved files to temporary directory: %s \n", cleanTempDir)
 
 		// Update the input directory to point to the temporary folder.
 		inputDir = cleanTempDir
