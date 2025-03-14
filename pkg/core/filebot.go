@@ -1,4 +1,4 @@
-package filebot
+package core
 
 import (
 	"errors"

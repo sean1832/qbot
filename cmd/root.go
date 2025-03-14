@@ -6,14 +6,15 @@ package cmd
 import (
 	"os"
 
+	util "github.com/sean1832/qbot/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "qbot",
-	Short: "qbot v0.1.0",
-	Long:  `qbittorrent post-processing CLI`,
+	Short: "qbot v" + util.VERSION,
+	Long:  `qbittorrent post-processing CLI` + "\n" + "Version: " + util.VERSION,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	logging "github.com/sean1832/qbot/internal"
-	filebot "github.com/sean1832/qbot/pkg"
+	filebot "github.com/sean1832/qbot/pkg/core"
 	"github.com/spf13/cobra"
 )
 
