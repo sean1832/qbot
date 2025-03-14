@@ -113,7 +113,7 @@ func Rename(inputPath string, outputPath string, query string, format string, db
 		"--db", db.ToString(),
 		"--format", fmt.Sprintf(`"%s"`, format),
 		"--q", fmt.Sprintf(`"%s"`, query),
-		"--action", fmt.Sprintf(`"%s"`, action.ToString()),
+		"--action", action.ToString(),
 		"--conflict", conflict.ToString(),
 		"--lang", language,
 		"--output", fmt.Sprintf(`"%s"`, outputPath),
