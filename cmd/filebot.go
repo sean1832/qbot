@@ -57,13 +57,12 @@ var filebotCmd = &cobra.Command{
 		// Always move all files to a temporary directory with a clean folder name.
 		// Avoids issues with folder names (like spaces) when using filebot.
 		// ==========================================================================
-		cleanTempDir := filepath.Join(tempRoot, "temp")
-		if err := ValidateInputPath(cleanTempDir); err != nil {
+		if err := ValidateInputPath(tempRoot); err != nil {
 			log.Println("Error validating temporary directory:", err)
 			return
 		}
 
-		if err := os.MkdirAll(cleanTempDir, os.ModePerm); err != nil {
+		if err := os.MkdirAll(tempRoot, os.ModePerm); err != nil {
 			log.Println("Error creating temporary directory:", err)
 			return
 		}
@@ -73,14 +72,11 @@ var filebotCmd = &cobra.Command{
 		if excludedDirsStr != "" {
 			excludedDirs = strings.Split(excludedDirsStr, ",")
 		}
-		if err := MoveFilesWithExclusion(inputDir, cleanTempDir, excludedDirs, false); err != nil {
+		if err := MoveFilesWithExclusion(inputDir, tempRoot, excludedDirs, false); err != nil {
 			log.Println("Error moving files to temporary directory:", err)
 			return
 		}
-		log.Printf("Moved files to temporary directory: %s \n", cleanTempDir)
-
-		// Update the input directory to point to the temporary folder.
-		inputDir = cleanTempDir
+		log.Printf("Moved files to temporary directory: %s \n", tempRoot)
 
 		// Scan the updated inputDir for existing extensions.
 		userExtensions := strings.Split(extensionsStr, ",")
@@ -91,7 +87,7 @@ var filebotCmd = &cobra.Command{
 		}
 
 		for _, ext := range extensions {
-			tempInputPath := filepath.Join(inputDir, "*."+ext)
+			tempInputPath := filepath.Join(tempRoot, "*."+ext)
 			log.Println("Processing:", tempInputPath)
 			var msg string
 			if msg, err = filebot.Rename(tempInputPath, outputDir, query, config.Format, db, action, conflict, language); err != nil {
@@ -104,7 +100,7 @@ var filebotCmd = &cobra.Command{
 		// ==========================================================================
 		// Cleanup: remove the temporary directory after processing.
 		// ==========================================================================
-		if err := os.RemoveAll(inputDir); err != nil {
+		if err := os.RemoveAll(tempRoot); err != nil {
 			log.Println("Error cleaning up temporary directory:", err)
 			return
 		}
