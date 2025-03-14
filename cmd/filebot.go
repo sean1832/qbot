@@ -13,7 +13,7 @@ import (
 	"syscall"
 
 	logging "github.com/sean1832/qbot/internal"
-	filebot "github.com/sean1832/qbot/pkg"
+	filebot "github.com/sean1832/qbot/pkg/core"
 	"github.com/spf13/cobra"
 )
 
@@ -42,20 +42,14 @@ var filebotCmd = &cobra.Command{
 			return
 		}
 
-		format, err := GetFormat(mediaCategory)
+		config, err := GetMediaConfig(mediaCategory)
 		if err != nil {
-			log.Println("Error getting format:", err)
+			log.Println("Error getting media configuration:", err)
 			return
 		}
 
-		mediaRoot, err := GetMediaCategoryRoot(mediaCategory)
-		if err != nil {
-			log.Println("Error getting media category root:", err)
-			return
-		}
-
-		// Build the output directory using filepath.Join for cross-platform compatibility.
-		outputDir := filepath.Clean(filepath.Join(plexRootPath, mediaRoot))
+		// Build the output directory using the media root from the config.
+		outputDir := filepath.Clean(filepath.Join(plexRootPath, config.Root))
 		inputDir = filepath.ToSlash(inputDir)
 		outputDir = filepath.ToSlash(outputDir)
 
@@ -63,13 +57,12 @@ var filebotCmd = &cobra.Command{
 		// Always move all files to a temporary directory with a clean folder name.
 		// Avoids issues with folder names (like spaces) when using filebot.
 		// ==========================================================================
-		cleanTempDir := filepath.Join(tempRoot, "temp")
-		if err := ValidateInputPath(cleanTempDir); err != nil {
+		if err := ValidateInputPath(tempRoot); err != nil {
 			log.Println("Error validating temporary directory:", err)
 			return
 		}
 
-		if err := os.MkdirAll(cleanTempDir, os.ModePerm); err != nil {
+		if err := os.MkdirAll(tempRoot, os.ModePerm); err != nil {
 			log.Println("Error creating temporary directory:", err)
 			return
 		}
@@ -79,14 +72,11 @@ var filebotCmd = &cobra.Command{
 		if excludedDirsStr != "" {
 			excludedDirs = strings.Split(excludedDirsStr, ",")
 		}
-		if err := MoveFilesWithExclusion(inputDir, cleanTempDir, excludedDirs, false); err != nil {
+		if err := MoveFilesWithExclusion(inputDir, tempRoot, excludedDirs, false); err != nil {
 			log.Println("Error moving files to temporary directory:", err)
 			return
 		}
-		logging.LogErrorf("Moved files to temporary directory: %s", cleanTempDir)
-
-		// Update the input directory to point to the temporary folder.
-		inputDir = cleanTempDir
+		log.Printf("Moved files to temporary directory: %s \n", tempRoot)
 
 		// Scan the updated inputDir for existing extensions.
 		userExtensions := strings.Split(extensionsStr, ",")
@@ -96,12 +86,11 @@ var filebotCmd = &cobra.Command{
 			// Continue
 		}
 
-		// Process files for each valid extension.
 		for _, ext := range extensions {
-			tempInputPath := filepath.Join(inputDir, "*."+ext)
+			tempInputPath := filepath.Join(tempRoot, "*."+ext)
 			log.Println("Processing:", tempInputPath)
 			var msg string
-			if msg, err = filebot.Rename(tempInputPath, outputDir, query, format, db, action, conflict, language); err != nil {
+			if msg, err = filebot.Rename(tempInputPath, outputDir, query, config.Format, db, action, conflict, language); err != nil {
 				log.Println("Error renaming files:", err)
 				log.Println("Error message:", msg)
 				return
@@ -111,12 +100,30 @@ var filebotCmd = &cobra.Command{
 		// ==========================================================================
 		// Cleanup: remove the temporary directory after processing.
 		// ==========================================================================
-		if err := os.RemoveAll(inputDir); err != nil {
+		if err := os.RemoveAll(tempRoot); err != nil {
 			log.Println("Error cleaning up temporary directory:", err)
 			return
 		}
 		log.Println("Cleaned up temporary directory.")
 	},
+}
+
+type MediaConfig struct {
+	Format string
+	Root   string
+}
+
+var mediaConfigs = map[string]MediaConfig{
+	"tv_show": {Format: "./{n}/Season {s}/{n} - {s00e00} - {t}", Root: "/TV-Shows/Real"},
+	"anime":   {Format: "./{n}/Season {s}/{n} - {s00e00} - {t}", Root: "/TV-Shows/Anime"},
+	"movie":   {Format: "./{ny}/{ny}", Root: "/Movies"},
+}
+
+func GetMediaConfig(category string) (MediaConfig, error) {
+	if config, ok := mediaConfigs[category]; ok {
+		return config, nil
+	}
+	return MediaConfig{}, logging.LogErrorf("type of media %s is not supported", category)
 }
 
 // filebot does not accept input paths with spaces.
@@ -155,30 +162,6 @@ func GetDB(category string) (filebot.DB, error) {
 		return filebot.TheMovieDB, nil
 	default:
 		return -1, logging.LogErrorf("type of media %s is not supported", category)
-	}
-}
-
-func GetFormat(category string) (string, error) {
-	switch category {
-	case "tv_show", "anime":
-		return "/{n}/Season {s}/{n} - {s00e00} - {t}", nil
-	case "movie":
-		return "/{ny}/{ny}", nil
-	default:
-		return "", logging.LogErrorf("type of media %s is not supported", category)
-	}
-}
-
-func GetMediaCategoryRoot(category string) (string, error) {
-	switch category {
-	case "tv_show":
-		return "/TV-Shows/Real", nil
-	case "anime":
-		return "/TV-Shows/Anime", nil
-	case "movie":
-		return "/Movies", nil
-	default:
-		return "", logging.LogErrorf("type of media %s is not supported", category)
 	}
 }
 
