@@ -2,7 +2,12 @@ package filebot
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 )
 
 // Action enum
@@ -102,18 +107,43 @@ func DBFromString(db string) (DB, error) {
 }
 
 func Rename(inputPath string, outputPath string, query string, format string, db DB, action Action, conflict Conflict, language string) (string, error) {
-	cmd := exec.Command("filebot",
-		"-rename", inputPath,
+	// Common arguments for filebot.
+	commonArgs := []string{
 		"-r",
 		"--db", db.ToString(),
-		"--format", format,
-		"--q", query,
-		"--action", action.ToString(),
+		"--format", fmt.Sprintf(`"%s"`, format),
+		"--q", fmt.Sprintf(`"%s"`, query),
+		"--action", fmt.Sprintf(`"%s"`, action.ToString()),
 		"--conflict", conflict.ToString(),
 		"--lang", language,
-		"--output", outputPath,
+		"--output", fmt.Sprintf(`"%s"`, outputPath),
 		"-non-strict",
-	)
+	}
+
+	var cmd *exec.Cmd
+
+	// Windows does not support shell globbing so we expand manually.
+	if runtime.GOOS == "windows" {
+		matches, err := filepath.Glob(inputPath)
+		if err != nil {
+			return "", fmt.Errorf("error expanding glob: %w", err)
+		}
+		if len(matches) == 0 {
+			return "", fmt.Errorf("no files found for pattern %s", inputPath)
+		}
+		// Build the argument slice: first the '-rename', then the expanded file paths, then the common args.
+		args := append([]string{"-rename"}, matches...)
+		args = append(args, commonArgs...)
+		cmd = exec.Command("filebot", args...)
+		log.Printf("Executing command: filebot %v", args)
+	} else {
+		// On Unix-like systems, let the shell expand the glob.
+		// Do NOT quote inputPath, so that the shell can expand wildcards.
+		cmdStr := fmt.Sprintf("filebot -rename %s %s", inputPath, strings.Join(commonArgs, " "))
+		cmd = exec.Command("sh", "-c", cmdStr)
+		log.Printf("Executing command: %s", cmdStr)
+	}
+
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
