@@ -12,9 +12,10 @@ import (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "qbot",
-	Short: "qbot v" + util.VERSION,
-	Long:  `qbittorrent post-processing CLI` + "\n" + "Version: " + util.VERSION,
+	Use:     "qbot",
+	Short:   "qbot v" + util.VERSION,
+	Long:    `qbittorrent post-processing CLI` + "\n" + "Version: " + util.VERSION,
+	Version: util.VERSION,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -27,5 +28,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	rootCmd.SetVersionTemplate("{{.Version}}\n") // Only print the version number.
+	rootCmd.CompletionOptions.DisableDefaultCmd = true // Disable default command
 }
