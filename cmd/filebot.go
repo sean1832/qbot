@@ -118,9 +118,9 @@ type MediaConfig struct {
 }
 
 var mediaConfigs = map[string]MediaConfig{
-	"tv_show": {Format: "/{n}/Season {s}/{n} - {s00e00} - {t}", Root: "/TV-Shows/Real"},
-	"anime":   {Format: "/{n}/Season {s}/{n} - {s00e00} - {t}", Root: "/TV-Shows/Anime"},
-	"movie":   {Format: "/{ny}/{ny}", Root: "/Movies"},
+	"tv_show": {Format: "./{n}/Season {s}/{n} - {s00e00} - {t}", Root: "/TV-Shows/Real"},
+	"anime":   {Format: "./{n}/Season {s}/{n} - {s00e00} - {t}", Root: "/TV-Shows/Anime"},
+	"movie":   {Format: "./{ny}/{ny}", Root: "/Movies"},
 }
 
 func GetMediaConfig(category string) (MediaConfig, error) {
