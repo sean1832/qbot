@@ -58,10 +58,20 @@ qbot.exe filebot [flags]
   Comma-separated directories to exclude (if any).
 
 ### Use with qbittorrent
+
+To use qbot with qbittorrent, you can create a shell script that sets the `HOME` environment variable and executes qbot. For example:
+`usr/local/bin/qbot-script.sh`:
+```bash
+#!/bin/bash
+export HOME="/path/to/home"
+exec qbot "$@"
+```
+
 For integration with qbittorrent as a post-processing script, you can use the following example command:
 ```bash
-./qbot.exe filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t /path/to/temp_root
+qbot-script.sh filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t /path/to/temp_root --log "/path/to/log"
 ```
+
 In this command:
 - `%F` is the downloaded file/folder path.
 - `%L` is the label (which identifies the media type).
