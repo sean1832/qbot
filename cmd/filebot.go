@@ -32,6 +32,18 @@ type Options struct {
 	filter string // e.g. s==1 (see https://www.filebot.net/forums/viewtopic.php?t=2127)
 }
 
+func deconstructTags(tags string) (Options, error) {
+	var options Options
+	for _, tag := range strings.Split(tags, ",") {
+		if strings.HasPrefix(tag, "filter:") {
+			log.Println("tag:", tag)
+			filter := strings.Split(tag, ":")[1]
+			options.filter = filter
+		}
+	}
+	return options, nil
+}
+
 var filebotCmd = &cobra.Command{
 	Use:   "filebot",
 	Short: "Activate filebot automation",
@@ -322,18 +334,6 @@ func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []st
 		}
 		return nil
 	})
-}
-
-func deconstructTags(tags string) (Options, error) {
-	var options Options
-	for _, tag := range strings.Split(tags, ",") {
-		if strings.HasPrefix(tag, "filter:") {
-			log.Println("tag:", tag)
-			filter := strings.Split(tag, ":")[1]
-			options.filter = filter
-		}
-	}
-	return options, nil
 }
 
 // InitLogging initializes logging. If a log file is specified, it ensures the directory exists
