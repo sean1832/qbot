@@ -1,84 +1,144 @@
 # qbot
-qbot is designed to be used as a post-processing script for qbittorrent. It automates renaming and moving of downloaded media files using filebot. The tool processes media files according to defined file extensions and organizes them into appropriate directories.
 
-## Todo
-- [ ] Add support for configuration file
+qbot is a post-processing tool for [qbittorrent](https://www.qbittorrent.org/) that automates the renaming and moving of downloaded media files using [Filebot](https://www.filebot.net/). It processes files based on defined extensions and organizes them into the appropriate directories for Plex media libraries.
 
-~~- [x] Add support for logging output to a file~~
-(Added in [v0.1.3](https://github.com/sean1832/qbot/releases/tag/0.1.3))
+## Features
+
+- **Automated File Processing:** Renames and moves files using Filebot based on user-specified rules.
+- **Media Organization:** Supports multiple media categories (e.g., TV Shows, Anime, Movies) with custom directory layouts.
+- **Customizable Options:** Configure file extensions, exclusion directories, and Filebot filters via command-line flags.
+- **Logging:** Optional logging to a file for troubleshooting and tracking operations.
+- **Seamless qbittorrent Integration:** Designed to work directly as a post-processing script.
 
 ## Pre-requisites
-- [qbittorrent](https://www.qbittorrent.org/)
-- [filebot](https://www.filebot.net/) with a valid license
+
+- **qbittorrent:** Install from the [official site](https://www.qbittorrent.org/).
+- **Filebot:** Requires a valid license. Visit [Filebot](https://www.filebot.net/) for details.
 
 ## Installation
-1. Download the latest release from the [releases page](https://github.com/sean1832/qbot/releases/latest) or with `curl`:
-### Windows
+
+### Download Binary
+
+You can download the latest release from the [releases page](https://github.com/sean1832/qbot/releases/latest).
+
+#### Windows
 ```bash
 curl -L https://github.com/sean1832/qbot/releases/latest/download/qbot-win-amd64.exe -o qbot.exe
 ```
-### Linux
+
+#### Linux
 ```bash
 curl -L https://github.com/sean1832/qbot/releases/latest/download/qbot-linux-amd64 -o qbot
 ```
 
-2. Add the binary to your PATH
+Then, add the binary to your PATH.
 
-### Compile from source
-1. Clone the repository
-2. Run the `build` command:
+### Compile from Source
+
+1. Clone the repository:
+```bash
+git clone https://github.com/sean1832/qbot.git
+cd qbot
+```
+2. Build the project:
 ```bash
 go build .
 ```
 
 ## Usage
+
+qbot is executed from the command line. The primary subcommand is `filebot`, which is used for media file processing.
+
 ```bash
-qbot.exe filebot [flags]
+qbot filebot [flags] <input_path> <media_category>
 ```
 
+- `<input_path>`: The path of the downloaded file or folder.
+- `<media_category>`: The type of media (supported values: `tv_show`, `anime`, `movie`).
 
-### `filebot` Options
+### Global Options
+
 - `-d, --destination`  
-  Destination path of the Plex media root. This root should contain directories like `TV-Shows/Real`, `TV-Shows/Anime`, and `Movies`.
+  **Description:** Destination path of the Plex media root.  
+  **Example:** The Plex root should have subdirectories like `TV-Shows/Real`, `TV-Shows/Anime`, and `Movies`.
 
 - `-n, --name`  
-  Torrent name to help filebot identify the media.
+  **Description:** Torrent name to help Filebot identify the media.
 
 - `-l, --language`  
-  Language of the media (default: `en`).
+  **Description:** Language of the media (default: `en`).
 
 - `-a, --action`  
-  Action to take (e.g., `move`).
+  **Description:** Action to perform on the file (e.g., `move`).
 
 - `-c, --conflict`  
-  Conflict resolution strategy (e.g., `skip`).
+  **Description:** Conflict resolution strategy (e.g., `skip`).
 
 - `-e, --ext`  
-  Comma-separated file extensions to process (default: `"mkv,mp4,avi,mov,rmvb"`).
+  **Description:** Comma-separated file extensions to process.  
+  **Default:** `mkv,mp4,avi,mov,rmvb`
 
 - `-x, --exclude`  
-  Comma-separated directories to exclude (if any).
+  **Description:** Comma-separated directories to exclude from processing.
 
-### Use with qbittorrent
+- `--temp`  
+  **Description:** Temporary directory used for processing (to avoid issues with folder names).  
+  **Default:** `.temp`
 
-To use qbot with qbittorrent, you can create a shell script that sets the `HOME` environment variable and executes qbot. For example:
-`usr/local/bin/qbot-script.sh`:
+- `--log`  
+  **Description:** Path to a log file where output will be recorded.
+
+- `-t, --tags`  
+  **Description:** Comma-separated tags for additional Filebot options (format: `filter:xxx`).
+
+### Media Configurations
+
+qbot supports different media types with predefined directory structures and naming formats:
+
+- **tv_show:**  
+  - **Format:** `./{n}/Season {s}/{n} - {s00e00} - {t}`  
+  - **Destination Subdirectory:** `/TV-Show/Real`
+
+- **anime:**  
+  - **Format:** `./{n}/Season {s}/{n} - {s00e00} - {t}`  
+  - **Destination Subdirectory:** `/TV-Show/Anime`
+
+- **movie:**  
+  - **Format:** `./{ny}/{ny}`  
+  - **Destination Subdirectory:** `/Movie`
+
+## qbittorrent Integration
+
+To integrate qbot as a post-processing script for qbittorrent, you can create a simple shell script that sets up the environment and calls qbot. For example:
+
+**Create a script:** `usr/local/bin/qbot-script.sh`
 ```bash
 #!/bin/bash
 export HOME="/path/to/home"
 exec qbot "$@"
 ```
-
-For integration with qbittorrent as a post-processing script, you can use the following example command:
+Make the script executable:
 ```bash
-qbot-script.sh filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t /path/to/temp_root --log "/path/to/log"
+chmod +x /usr/local/bin/qbot-script.sh
 ```
 
-In this command:
+**Example qbittorrent command:**
+```bash
+qbot-script.sh filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t "filter:myfilter" --temp /path/to/temp_root --log "/path/to/log"
+```
+Where:
 - `%F` is the downloaded file/folder path.
-- `%L` is the label (which identifies the media type).
+- `%L` is the media label.
 - `%N` is the torrent name.
-- Adjust the destination path and flags as needed.
+
+Adjust the flags and paths as needed for your environment.
+
+## Todo
+
+- [ ] Add support for a configuration file to simplify complex setups.
+
+---
 
 ## License
-This project is licensed under the [Apache 2.0](LICENSE).
+
+This project is licensed under the [Apache 2.0 License](LICENSE).
