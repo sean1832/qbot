@@ -26,6 +26,11 @@ var extensionsStr string
 var excludedDirsStr string
 var tempRoot string
 var logFile string
+var tagsStr string
+
+type Options struct {
+	filter string // e.g. s==1 (see https://www.filebot.net/forums/viewtopic.php?t=2127)
+}
 
 var filebotCmd = &cobra.Command{
 	Use:   "filebot",
@@ -86,12 +91,16 @@ var filebotCmd = &cobra.Command{
 		if len(extensions) == 0 {
 			log.Println("No valid extensions found in the input path")
 		}
+		opt, err := deconstructTags(tagsStr)
+		if err != nil {
+			log.Fatalf("Error deconstructing tags: %s", err)
+		}
 
 		// Process each extension.
 		for _, ext := range extensions {
 			tempInputPath := filepath.Join(tempRoot, "*."+ext)
 			log.Println("Processing:", tempInputPath)
-			msg, err := filebot.Rename(tempInputPath, outputDir, query, config.Format, db, action, conflict, language)
+			msg, err := filebot.Rename(tempInputPath, outputDir, query, config.Format, db, action, conflict, language, opt.filter)
 			if err != nil {
 				log.Fatalf("Error renaming files: %s, [Message: %s]", err, msg)
 			}
@@ -315,6 +324,18 @@ func MoveFilesWithExclusion(sourceDir, destinationDir string, excludedPaths []st
 	})
 }
 
+func deconstructTags(tags string) (Options, error) {
+	var options Options
+	for _, tag := range strings.Split(tags, ",") {
+		if strings.HasPrefix(tag, "filter:") {
+			log.Println("tag:", tag)
+			filter := strings.Split(tag, ":")[1]
+			options.filter = filter
+		}
+	}
+	return options, nil
+}
+
 // InitLogging initializes logging. If a log file is specified, it ensures the directory exists
 // and opens the file in append mode; otherwise, logging defaults to stderr.
 func InitLogging() {
@@ -346,9 +367,10 @@ func init() {
 	filebotCmd.Flags().StringVarP(&conflictStr, "conflict", "c", "skip", "conflict resolution")
 	filebotCmd.Flags().StringVarP(&extensionsStr, "ext", "e", "mkv,mp4,avi,mov,rmvb", "file extensions to process (comma separated)")
 	filebotCmd.Flags().StringVarP(&excludedDirsStr, "exclude", "x", "", "directories to exclude (comma separated)")
-	filebotCmd.Flags().StringVarP(&tempRoot, "temp", "t", ".temp", "temporary root directory for moving files with exclusion")
+	filebotCmd.Flags().StringVarP(&tempRoot, "temp", "", ".temp", "temporary root directory for moving files with exclusion")
 	filebotCmd.Flags().StringVarP(&logFile, "log", "", "", "log file path")
+	filebotCmd.Flags().StringVarP(&tagsStr, "tags", "t", "", "tags for processing (comma separated) (format: filter:xxx)")
 
 	// Example usage for qbittorrent post-process script:
-	// ./qbot.exe filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t /path/to/temp_root --log /var/log/qbot.log
+	// ./qbot.exe filebot %F %L -d /path/to/media/root -n %N -t %G -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" --temp /path/to/temp_root --log /var/log/qbot.log
 }

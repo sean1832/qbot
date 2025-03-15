@@ -105,7 +105,7 @@ func DBFromString(db string) (DB, error) {
 	}
 }
 
-func Rename(inputPath string, outputPath string, query string, format string, db DB, action Action, conflict Conflict, language string) (string, error) {
+func Rename(inputPath string, outputPath string, query string, format string, db DB, action Action, conflict Conflict, language string, filter string) (string, error) {
 	// Common arguments for filebot.
 	commonArgs := []string{
 		"-r",
@@ -117,6 +117,9 @@ func Rename(inputPath string, outputPath string, query string, format string, db
 		"--lang", language,
 		"--output", fmt.Sprintf(`"%s"`, outputPath),
 		"-non-strict",
+	}
+	if filter != "" {
+		commonArgs = append(commonArgs, "--filter", filter)
 	}
 
 	var cmd *exec.Cmd
@@ -134,5 +137,6 @@ func Rename(inputPath string, outputPath string, query string, format string, db
 	}
 
 	output, err := cmd.CombinedOutput()
+	log.Printf("Output: %s", output)
 	return string(output), err
 }
