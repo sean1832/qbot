@@ -3,7 +3,9 @@ qbot is designed to be used as a post-processing script for qbittorrent. It auto
 
 ## Todo
 - [ ] Add support for configuration file
-- [ ] Add support for logging output to a file
+
+~~- [x] Add support for logging output to a file~~
+(Added in [v0.1.3](https://github.com/sean1832/qbot/releases/tag/0.1.3))
 
 ## Pre-requisites
 - [qbittorrent](https://www.qbittorrent.org/)
