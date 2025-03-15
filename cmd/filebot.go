@@ -76,9 +76,9 @@ var filebotCmd = &cobra.Command{
 		}
 		log.Printf("Moved files to temporary directory: %s \n", tempRoot)
 
-		// Scan the updated inputDir for existing extensions.
+		// Scan the updated tempRoot for existing extensions.
 		userExtensions := strings.Split(extensionsStr, ",")
-		existingExts, err := GetExistingExtensions(inputDir)
+		existingExts, err := GetExistingExtensions(tempRoot)
 		if err != nil {
 			log.Fatalf("Error scanning for existing extensions: %s", err)
 		}
