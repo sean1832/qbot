@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -122,18 +121,8 @@ func Rename(inputPath string, outputPath string, query string, format string, db
 
 	var cmd *exec.Cmd
 
-	// Windows does not support shell globbing so we expand manually.
 	if runtime.GOOS == "windows" {
-		matches, err := filepath.Glob(inputPath)
-		if err != nil {
-			return "", fmt.Errorf("error expanding glob: %w", err)
-		}
-		if len(matches) == 0 {
-			return "", fmt.Errorf("no files found for pattern %s", inputPath)
-		}
-		// Build the argument slice: first the '-rename', then the expanded file paths, then the common args.
-		args := append([]string{"-rename"}, matches...)
-		args = append(args, commonArgs...)
+		args := append([]string{"-rename", inputPath}, commonArgs...)
 		cmd = exec.Command("filebot", args...)
 		log.Printf("Executing command: filebot %v", args)
 	} else {
