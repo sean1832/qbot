@@ -124,12 +124,13 @@ chmod +x /usr/local/bin/qbot-script.sh
 
 **Example qbittorrent command:**
 ```bash
-qbot-script.sh filebot %F %L -d /path/to/media/root -n %N -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" -t "filter:myfilter" --temp /path/to/temp_root --log "/path/to/log"
+qbot-script.sh filebot %F %L -d /path/to/media/root -n %N -t %G -a move -c skip -l en -e "mkv,mp4,avi,mov,rmvb" -x "sample,extras" --temp /path/to/temp_root --log "/path/to/log"
 ```
 Where:
 - `%F` is the downloaded file/folder path.
 - `%L` is the media label.
 - `%N` is the torrent name.
+- `%G` is the torrent tags.
 
 Adjust the flags and paths as needed for your environment.
 
