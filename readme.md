@@ -89,7 +89,7 @@ qbot filebot [flags] <input_path> <media_category>
   **Description:** Path to a log file where output will be recorded.
 
 - `-t, --tags`  
-  **Description:** Comma-separated tags for additional Filebot options (format: `filter:xxx`).
+  **Description:** Comma-separated tags for additional Filebot options (format: `filter:xxx`). (e.g. `filter:s==2` to specify search for only season 2)
 
 ### Media Configurations
 
